@@ -1,5 +1,12 @@
 # sandbench
 
+<p>
+  <img src="https://img.shields.io/badge/AI_Infra-sandbox_bench-B4532A?style=for-the-badge" alt="AI Infra">
+  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Docker-cgroup_isolation-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/leftover-0_after_bench-1F3B4D?style=for-the-badge" alt="no leftover">
+</p>
+
 隔离容器里跑一条命令，再压一轮 **创建 / 执行 / 销毁** 生命周期。用来把「沙箱」翻译成面试官能听懂的 Infra：配额、超时、失败分类、残留回收、并发延迟。
 
 这不是 RAG Demo，也不是生产沙箱（没有 gVisor / Kata）。隔离边界是 Docker + cgroup，和华为那段离线 Cube 沙箱同源：先把生命周期和失败模式测清楚，再谈业务。
