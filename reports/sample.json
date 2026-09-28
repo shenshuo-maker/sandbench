@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-09-28T08:02:51.620636+00:00",
+  "jobs": 8,
+  "concurrency": 4,
+  "workload": "ok",
+  "leftover_after": 0,
+  "counts": {
+    "ok": 8,
+    "timeout": 0,
+    "oom": 0,
+    "error": 0
+  },
+  "latency_ms": {
+    "p50": 350.58,
+    "p95": 540.07,
+    "max": 540.07
+  }
+}
