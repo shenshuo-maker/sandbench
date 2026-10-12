@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import platform
 import shutil
 import subprocess
 from typing import Sequence
@@ -45,6 +46,31 @@ def leftover_containers() -> list[str]:
     if proc.returncode != 0:
         raise DockerError(proc.stderr.strip() or "docker ps failed")
     return [line for line in proc.stdout.splitlines() if line.strip()]
+
+
+def host_facts() -> dict[str, str | int]:
+    """Machine and daemon facts recorded next to a benchmark table."""
+    version = run_docker(["version", "--format", "{{.Server.Version}}"], timeout_s=15)
+    info = run_docker(
+        [
+            "info",
+            "--format",
+            "{{.OperatingSystem}}|{{.Architecture}}|{{.NCPU}}|{{.MemTotal}}",
+        ],
+        timeout_s=15,
+    )
+    os_name, arch, ncpu, mem = ("", "", "", "")
+    if info.returncode == 0 and "|" in info.stdout:
+        os_name, arch, ncpu, mem = (info.stdout.strip().split("|") + ["", "", "", ""])[:4]
+    return {
+        "platform": platform.platform(),
+        "python": platform.python_version(),
+        "docker": version.stdout.strip() if version.returncode == 0 else "unknown",
+        "docker_os": os_name,
+        "arch": arch,
+        "ncpu": ncpu,
+        "mem_bytes": mem,
+    }
 
 
 def prune_leftovers() -> list[str]:

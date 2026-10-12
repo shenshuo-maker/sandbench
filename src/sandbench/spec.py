@@ -24,6 +24,9 @@ class IsolationSpec:
     network: bool = False
     read_only: bool = True
     user: str = "65534:65534"
+    # Larger than the memory limit when the workload must hit the cgroup OOM killer
+    # before tmpfs returns ENOSPC.
+    tmpfs_size: str = "16m"
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -37,6 +40,9 @@ class RunResult:
     status: Status
     exit_code: int | None
     latency_ms: float
+    create_ms: float
+    exec_ms: float
+    destroy_ms: float
     stdout: str
     stderr: str
     name: str

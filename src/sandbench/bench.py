@@ -13,9 +13,14 @@ from .spec import Status
 
 WORKLOADS: dict[str, list[str]] = {
     "ok": ["sh", "-c", "echo sandbench-ok"],
+    # Sleeps far longer than timeout_s so the client must kill the container.
     "timeout": ["sh", "-c", "sleep 30"],
-    "oom": ["sh", "-c", "dd if=/dev/zero of=/tmp/blob bs=1M count=256"],
+    # tmpfs is larger than the memory cap, so the write hits the OOM killer
+    # instead of returning ENOSPC from a full tmpfs.
+    "oom": ["sh", "-c", "dd if=/dev/zero of=/tmp/blob bs=1M count=96"],
 }
+
+EXPECTED_STATUS = {"ok": "ok", "timeout": "timeout", "oom": "oom"}
 
 
 @dataclass
@@ -25,7 +30,11 @@ class BenchReport:
     workload: str
     leftover_after: int
     counts: dict[str, int]
+    success_rate: float
     latency_ms: dict[str, float]
+    create_ms: dict[str, float]
+    exec_ms: dict[str, float]
+    destroy_ms: dict[str, float]
     results: list[RunResult]
 
     def as_dict(self) -> dict[str, Any]:
@@ -35,7 +44,11 @@ class BenchReport:
             "workload": self.workload,
             "leftover_after": self.leftover_after,
             "counts": self.counts,
+            "success_rate": self.success_rate,
             "latency_ms": self.latency_ms,
+            "create_ms": self.create_ms,
+            "exec_ms": self.exec_ms,
+            "destroy_ms": self.destroy_ms,
         }
 
 
@@ -80,9 +93,11 @@ def run_bench(
 
     spec = spec or IsolationSpec()
     if workload == "timeout":
-        spec = IsolationSpec(**{**spec.as_dict(), "timeout_s": min(spec.timeout_s, 1.0)})
+        spec = IsolationSpec(**{**spec.as_dict(), "timeout_s": min(spec.timeout_s, 2.0)})
     if workload == "oom":
-        spec = IsolationSpec(**{**spec.as_dict(), "memory": "16m", "read_only": True})
+        spec = IsolationSpec(
+            **{**spec.as_dict(), "memory": "32m", "tmpfs_size": "128m", "read_only": True}
+        )
 
     prune_leftovers()
     command = WORKLOADS[workload]
@@ -94,23 +109,33 @@ def run_bench(
 
     leftover = leftover_containers()
     prune_leftovers()
-    latencies = [item.latency_ms for item in results]
     counts: dict[str, int] = {key: 0 for key in ("ok", "timeout", "oom", "error")}
     for item in results:
         counts[item.status] = counts.get(item.status, 0) + 1
+    expected = EXPECTED_STATUS[workload]
+    success_rate = round(counts.get(expected, 0) / jobs, 4)
     return BenchReport(
         jobs=jobs,
         concurrency=concurrency,
         workload=workload,
         leftover_after=len(leftover),
         counts=counts,
-        latency_ms={
-            "p50": round(percentile(latencies, 50), 2),
-            "p95": round(percentile(latencies, 95), 2),
-            "max": round(max(latencies) if latencies else 0.0, 2),
-        },
+        success_rate=success_rate,
+        latency_ms=_latency_stats(item.latency_ms for item in results),
+        create_ms=_latency_stats(item.create_ms for item in results),
+        exec_ms=_latency_stats(item.exec_ms for item in results),
+        destroy_ms=_latency_stats(item.destroy_ms for item in results),
         results=results,
     )
+
+
+def _latency_stats(values) -> dict[str, float]:
+    samples = list(values)
+    return {
+        "p50": round(percentile(samples, 50), 2),
+        "p95": round(percentile(samples, 95), 2),
+        "max": round(max(samples) if samples else 0.0, 2),
+    }
 
 
 def summarize_status(results: list[RunResult]) -> dict[Status, int]:

@@ -18,8 +18,8 @@
 | 资源隔离 | `--memory` `--cpus` `--pids-limit` `--network none` | 容器平台、稳定性、云主机 |
 | 安全默认 | 非 root、`cap-drop ALL`、只读根、`no-new-privileges` | 安全 / 运行时 |
 | 故障分类 | `ok` / `timeout` / `oom` / `error` | 可观测、SLO、值班 |
-| 生命周期 | 每次 run 都 `--rm`；超时强制 `rm -f`；bench 后扫 label 残留 | 调度、K8s、资源泄漏 |
-| 压测 | 并发 N、jobs M，输出 p50/p95 | 性能、容量规划 |
+| 生命周期 | `docker run -d` 计创建，`docker wait` 计执行，`docker rm -f` 计销毁；bench 后按 label 扫残留 | 调度、K8s、资源泄漏 |
+| 压测 | 并发 1 / 10 / 50，各 50 次，输出成功率、分阶段延迟、残留 | 性能、容量规划 |
 
 ## 依赖
 
@@ -46,28 +46,43 @@ docker pull busybox
 python -m sandbench run -- sh -c 'echo sandbench-ok'
 ```
 
-并发生命周期压测（默认 20 jobs / 5 并发）：
+复现 README 里那张表（并发 1、10、50，各 50 次，负载是 `echo`）：
 
 ```bash
-python -m sandbench bench --jobs 20 --concurrency 5 --workload ok
+python -m sandbench matrix --jobs 50 --concurrency 1,10,50 --workload ok
 ```
 
-刻意打超时（验证客户端超时后容器被清掉）：
+超时和 OOM 各跑一小轮，确认分类，不混进上面那张表：
 
 ```bash
 python -m sandbench bench --jobs 6 --concurrency 3 --workload timeout
+python -m sandbench bench --jobs 4 --concurrency 2 --workload oom
 python -m sandbench leftover   # 应为 (none)
 ```
 
-JSON 报告默认写到 `reports/latest.json`。
+`ok` 负载的原始数字在 [reports/matrix.json](reports/matrix.json)。
+
+## 本机结果
+
+2026-10-12 跑的，负载 `echo sandbench-ok`。机器是 macOS 26 arm64，Docker Desktop 29.6.1，虚拟机 8 CPU / 3.8 GiB。创建时间是 `docker run -d` 返回前的耗时，包含创建和启动；`echo` 往往在这一步里就结束了，所以执行时间只是之后 `docker wait` 收回退出码的时间。
+
+| 并发 | jobs | 成功率 | 创建 p50 (ms) | 创建 p95 (ms) | 执行 p50 (ms) | 销毁 p50 (ms) | 残留 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 50 | 100% | 156.02 | 264.31 | 31.03 | 28.0 | 0 |
+| 10 | 50 | 100% | 1987.66 | 2905.86 | 69.87 | 190.93 | 0 |
+| 50 | 50 | 100% | 9101.06 | 10615.66 | 68.09 | 253.76 | 0 |
+
+并发从 1 拉到 50，成功率仍是 100%，销毁后残留是 0。创建 p95 从 264 ms 涨到 10.6 s。瓶颈在 Docker Desktop 这次只给了 3.8 GiB 的虚拟机，50 个容器同时创建时卡在 dockerd，不在 `echo` 本身。
+
+同一次代码里，`sleep 30` 配 2 秒超时会被记成 timeout，向 tmpfs 写超过内存上限会被记成 oom（退出码 137）。这两轮残留也是 0。
 
 ## 面试怎么讲（8 分钟）
 
 1. **问题**：给不可信代码一个短生命周期环境，必须限制 CPU/内存/PID/网络，跑完不能留容器。
-2. **取舍**：用 Docker 当隔离边界，而不是自己做内核模块；和实习里 E2B 评估后换 Cube 一样——先评估能不能交付，再压测。
-3. **机制**：每次 `docker run --rm` + label；客户端超时后 `docker rm -f`；bench 结束再扫一遍残留。
-4. **结果**：`ok` 负载下 leftover=0；`timeout` 负载下 status 为 timeout 且 leftover=0。数字以你机器上的 `reports/latest.json` 为准。
-5. **没做的**：生产级逃逸防护、镜像构建缓存、K8s RuntimeClass。被问到就说下一步是 cgroup v2 指标和排队调度。
+2. **取舍**：用 Docker 当隔离边界，而不是自己做内核模块；和实习里先评估能不能交付、再压测是同一件事。
+3. **机制**：`docker run -d`、到点 `docker kill`、然后 `docker rm -f`。每次带 label，bench 结束再扫残留。
+4. **结果**：打开上面的表。成功率、残留、创建延迟随并发变差，三列都要讲。
+5. **没做的**：没有 gVisor / Kata，没有排队。被问到就说下一步是把创建从同步 `docker run` 改成有队列的调度。
 
 口述稿见 [INTERVIEW.md](INTERVIEW.md)。
 

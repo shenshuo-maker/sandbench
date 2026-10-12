@@ -13,15 +13,15 @@
 ## 3. 设计
 
 - **隔离规格写死**：内存、CPU、PID、无网、非 root、丢 capabilities、只读根 + tmpfs。不依赖 daemon 默认值。
-- **一次生命周期**：`docker run --rm`；客户端超时就 `rm -f`，避免 docker CLI 被杀掉后容器还在。
-- **失败分类**：exit 0 为 ok，超时为 timeout，137/139 为 oom，其余为 error。tmpfs 写满可能是 error 而不是 oom，分类要诚实。
+- **一次生命周期**：`docker run -d` 计创建，`docker wait` 计执行并在 `timeout_s` 到点后 `kill`，`docker rm -f` 计销毁。不用 `--rm`，否则销毁时间和超时杀不分开。
+- **失败分类**：exit 0 为 ok，客户端超时为 timeout（即使 kill 之后退出码是 137），137 且没有超时为 oom，其余为 error。
 - **压测**：线程池打满并发，bench 前后用 label 扫残留。
 
-## 4. 结果（现场打开 JSON）
+## 4. 结果（现场打开 README 那张表）
 
-- `workload=ok`：counts.ok 等于 jobs，leftover_after=0。
-- `workload=timeout`：status 为 timeout，leftover_after=0。
-- 报 p50/p95。被问瓶颈时说：本机瓶颈通常在 dockerd 和镜像层，不在 Python 线程池。
+- 并发 1 / 10 / 50，各 50 次 `echo`：成功率 100%，残留 0。
+- 创建 p95 从两百多毫秒涨到大约 10 秒。先说这是 Docker Desktop 虚拟机在排队，再说执行和销毁没有跟着涨那么多。
+- `timeout` 和 `oom` 单独有分类，不要和这张表混在一起讲。
 
 ## 5. 映射到对方团队（对方不是沙箱组时必说）
 

@@ -1,0 +1,114 @@
+{
+  "generated_at": "2026-10-12T06:49:10.219281+00:00",
+  "host": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.0",
+    "docker": "29.6.1",
+    "docker_os": "Docker Desktop",
+    "arch": "aarch64",
+    "ncpu": "8",
+    "mem_bytes": "4108632064"
+  },
+  "workload": "ok",
+  "rows": [
+    {
+      "jobs": 50,
+      "concurrency": 1,
+      "workload": "ok",
+      "leftover_after": 0,
+      "counts": {
+        "ok": 50,
+        "timeout": 0,
+        "oom": 0,
+        "error": 0
+      },
+      "success_rate": 1.0,
+      "latency_ms": {
+        "p50": 244.71,
+        "p95": 383.95,
+        "max": 1437.59
+      },
+      "create_ms": {
+        "p50": 156.02,
+        "p95": 264.31,
+        "max": 1255.19
+      },
+      "exec_ms": {
+        "p50": 31.03,
+        "p95": 57.59,
+        "max": 136.45
+      },
+      "destroy_ms": {
+        "p50": 28.0,
+        "p95": 41.98,
+        "max": 94.23
+      }
+    },
+    {
+      "jobs": 50,
+      "concurrency": 10,
+      "workload": "ok",
+      "leftover_after": 0,
+      "counts": {
+        "ok": 50,
+        "timeout": 0,
+        "oom": 0,
+        "error": 0
+      },
+      "success_rate": 1.0,
+      "latency_ms": {
+        "p50": 2415.55,
+        "p95": 3778.14,
+        "max": 3888.04
+      },
+      "create_ms": {
+        "p50": 1987.66,
+        "p95": 2905.86,
+        "max": 3504.51
+      },
+      "exec_ms": {
+        "p50": 69.87,
+        "p95": 239.69,
+        "max": 862.49
+      },
+      "destroy_ms": {
+        "p50": 190.93,
+        "p95": 678.37,
+        "max": 908.9
+      }
+    },
+    {
+      "jobs": 50,
+      "concurrency": 50,
+      "workload": "ok",
+      "leftover_after": 0,
+      "counts": {
+        "ok": 50,
+        "timeout": 0,
+        "oom": 0,
+        "error": 0
+      },
+      "success_rate": 1.0,
+      "latency_ms": {
+        "p50": 9424.22,
+        "p95": 10865.91,
+        "max": 11023.28
+      },
+      "create_ms": {
+        "p50": 9101.06,
+        "p95": 10615.66,
+        "max": 10686.66
+      },
+      "exec_ms": {
+        "p50": 68.09,
+        "p95": 107.78,
+        "max": 124.17
+      },
+      "destroy_ms": {
+        "p50": 253.76,
+        "p95": 382.73,
+        "max": 756.02
+      }
+    }
+  ]
+}
